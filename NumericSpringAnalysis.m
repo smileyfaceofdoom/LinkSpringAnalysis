@@ -16,17 +16,17 @@ m = 4;
 
 %create array of lengths
 %generate random numbers
-%R = rand(1,n);
+R = rand(1,n);
 %R = [.1,.2,.3,.4,.5,.6,.7,.8,.9];
 
 %create Weibull distribution
-%l = H.*((log(1./R)/log(2)).^(1/m));
+l = H.*((log(1./R)/log(2)).^(1/m));
 %verification
 
 
 %create exponential distribution of lengths
-%L = H.*(1-exp(-l));
-L = H*[.3,.5];
+L = H.*(1-exp(-l));
+%L = H*[.3,.5001];
 
 %create displacement distribution
 d = linspace(0,H,1000);
@@ -90,13 +90,16 @@ ylabel('Force (N)')
 %figure
 %make animation
 for i = 1:1000
-    %subplot(2,1,1);
-    figure(2)
+    subplot(2,1,1);
+    %figure(2)
     ani(L,y(:,i),H,n,d(i));
-    %subplot(2,1,2);
-    figure(3)
+    subplot(2,1,2);
+    %figure(3)
     plot(d(1:i),P(1:i));
-    axis([0,d(length(d))+.1,0,P(length(P))+20])
+    title('Force vs. Displacement')
+    ylabel('Force (N)')
+    xlabel('Displacement (m)')
+    axis([0,H+.1,0,10*n+15]) %y axis scale should probably be adjusted
     drawnow
 end
 
