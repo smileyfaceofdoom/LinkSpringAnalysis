@@ -7,9 +7,16 @@ function ani(L,y,H,n,d)
 %find width of links
 W = .05*H;
 
+%initialize spring matrices
+s_x = zeros(n,H/W);
+s_y = zeros(n,H/W);
+
 for j = 1:n
     %find angle from vertical
     theta = acos((L(j) - y(j))/L(j));
+    if theta > pi/2
+        theta = pi/2;
+    end
     %find endpoints of links
     C_1(j,1) = .5 + H*(j-1);
     C_1(j,2) = L(j) - y(j);
@@ -56,19 +63,33 @@ for j = 1:n
     %create spring
     %number of centers
     nc = ceil((H-L(j))/W);
+    %indicator of where the top of the spring falls on the board
+    rem = (H-L(j))/W - floor((H-L(j))/W);
+    %find leftover if spring length doesn't divide evenly by width
+    lb_init = (H-L(j)) - W*(nc-1);
+    lb_frac = lb_init/(H-L(j));
+    lb = lb_frac*((H-L(j))-d+y(j));
+    %find amount each bend of spring displaces
+    D = ((H-L(j))-d+y(j)-lb)/nc;
     %set spring endpoint
     s_x(j,1) = C_1(j,1);
     s_y(j,1) = C_1(j,2);
-    D = (W-(d-y(j))/(nc));
     %find locations of the bends
     for b = 2:nc+1
         sign_x = (-1)^b;
         s_x(j,b) = C_1(j,1) + sign_x*W*cos(asin(D/(2*W)));
         s_y(j,b) = C_1(j,2) + D*(b-1) - D/2;
     end
-    lb = (H-d) - s_y(j,nc+1);
-    s_x(j,nc+2) = C_1(j,1) + sign_x*(W*cos(asin(D/(2*W))) - lb/tan(asin(D/(2*W))));
-    s_y(j,nc+2) = H-d;
+    sign_x = (-1)^(nc+2);
+    if rem<.5
+        s_x(j,nc+2) = C_1(j,1) + sign_x*(lb/tan(asin(D/(2*W))));
+        s_y(j,nc+2) = H-d;
+    else
+        s_x(j,nc+2) = C_1(j,1) + sign_x*W*cos(asin(D/(2*W)));
+        s_y(j,nc+2) = C_1(j,2) + D*(nc+1) - D/2;
+        s_x(j,nc+3) = s_x(j,nc+2) - sign_x*((lb-D/2)/tan(asin(D/(2*W))));
+        s_y(j,nc+3) = H-d;
+    end
     
 end
 %draw top block
@@ -98,7 +119,15 @@ for j = 1:n
 end
 %draw springs
 for j = 1:n
-    plot(s_x(j,:),s_y(j,:),'k')
+    s_x_j = s_x(j,:);
+    %s_y_j = s_y(j,:);
+    ind = find(s_x_j == 0,1);
+    %indy = find(s_y_j ==0,1);
+    %disp(indx)
+    %disp(indy)
+    disp(d)
+    disp(y)
+    plot(s_x(j,1:(ind-1)),s_y(j,1:(ind-1)))
 end
 axis([0,(n*H+.5), (-.1*H), (H+.1)])
 axis('equal')
