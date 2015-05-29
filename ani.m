@@ -8,8 +8,8 @@ function ani(L,y,H,n,d)
 W = .05*H;
 
 %initialize spring matrices
-s_x = zeros(n,H/W);
-s_y = zeros(n,H/W);
+s_x = zeros(n,20);
+s_y = zeros(n,20);
 
 for j = 1:n
     %find angle from vertical
@@ -18,7 +18,7 @@ for j = 1:n
         theta = pi/2;
     end
     %find endpoints of links
-    C_1(j,1) = .5 + H*(j-1);
+    C_1(j,1) = .5*H + H*(j-1);
     C_1(j,2) = L(j) - y(j);
     C_2(j,1) = C_1(j,1) + (L(j)/2)*sin(theta);
     C_2(j,2) = (L(j)/2)*cos(theta);
@@ -60,6 +60,8 @@ for j = 1:n
     circ_3x(j,i) = C_3(j,1) + r*cos(t(i));
     circ_3y(j,i) = C_3(j,2) + r*sin(t(i));
     end
+    %get spring coordinates
+    
     %create spring
     %number of centers
     nc = ceil((H-L(j))/W);
@@ -90,13 +92,13 @@ for j = 1:n
         s_x(j,nc+3) = s_x(j,nc+2) - sign_x*((lb-D/2)/tan(asin(D/(2*W))));
         s_y(j,nc+3) = H-d;
     end
-    
+
 end
 %draw top block
-block_x(1) = .25;
-block_x(2) = n*H - .25;
-block_x(3) = n*H - .25;
-block_x(4) = .25;
+block_x(1) = .25*H;
+block_x(2) = n*H - .25*H;
+block_x(3) = n*H - .25*H;
+block_x(4) = .25*H;
 block_y(1) = H-d;
 block_y(2) = H-d;
 block_y(3) = H-d + W/2;
@@ -125,11 +127,11 @@ for j = 1:n
     %indy = find(s_y_j ==0,1);
     %disp(indx)
     %disp(indy)
-    disp(d)
-    disp(y)
+    %disp(d)
+    %disp(y)
     plot(s_x(j,1:(ind-1)),s_y(j,1:(ind-1)))
 end
-axis([0,(n*H+.5), (-.1*H), (H+.1)])
+axis([0,(n*H+.5*H), (-.1*H), (H+.1*H)])
 axis('equal')
 hold off
 
