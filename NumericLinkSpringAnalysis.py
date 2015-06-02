@@ -10,8 +10,12 @@ import time
 from numpy import mean
 from numpy import linspace
 import matplotlib.pyplot as plt
+from matplotlib.path import Path
+import matplotlib.patches as patches
+import matplotlib.animation as animation
 import MyRootFinding
 import binning
+import ani
 
 #begin timing code
 start_time = time.clock()
@@ -22,8 +26,8 @@ ea_t = 10.0 #top spring constant
 k_t = 100.0 #side spring constant
 H = 1.0 #Total height
 m = 4.0 #weibull modulus
-n_l = 300 #number of links
-i_max = 51 #number of nodes for binning
+n_l = 5 #number of links
+i_max = 21 #number of nodes for binning
 bing = False #apply binning? True or False
 
 #normalize
@@ -66,7 +70,7 @@ else:
 #make displacement distribution
 d = linspace(0,H,1000)
 #initialize y-values
-y = [[0]*n]*(len(d)-1)
+y = [[0]*n for x in range(len(d)-1)]
 y_avg = [0]*(len(d)-1)
 #initialize total force list
 P = [0]*(len(d)-1)
@@ -106,6 +110,7 @@ for i in range(len(d)-1):
         if c[j] == 0:
             #calculate force in link
             F[j] = ea*math.atanh(d[i]/(H-L[j]))
+            y[i][j] = 0
             #check to see if link has buckled
             if F[j] >= F_crit[j]:
                 c[j] = 1 #set indicator
@@ -186,5 +191,50 @@ plt.legend(["Actual Force Value","Force Value for Average Length"])
 
 print "Elapsed time is %f seconds" % (time.clock() - start_time)
 plt.show()
+
+#animate: note, binning must be turned off for animations
+
+#initialization
+#initialize figure
+fig = plt.figure()
+#set axes 
+ax = plt.axes(xlim=(0,H*n),ylim=(-.5,H*n-.5))
+#initialize patch vertices and move codes
+verts = [[-10.,-10.],[-10.,-9.],[-9.,-9.],[-9.,-10.],[-10.,-10.]]
+codes = [Path.MOVETO,Path.LINETO,Path.LINETO,Path.LINETO,Path.CLOSEPOLY]
+#set path
+path = Path(verts,codes)
+#create patch
+patch = patches.PathPatch(path,facecolor='white',edgecolor='white')
+#draw initial (blank) lines and patches
+lineb, = ax.plot([],[],'k',lw=7)
+linesp, = ax.plot([],[],'k',lw=2)
+ax.add_patch(patch)
+
+#set initialization function for animation
+def init():
+    #empty lines
+    linesp.set_data([],[])
+    lineb.set_data([],[])
+    #blank patch
+    ax.add_patch(patch)
+    #return data
+    return lineb,patch,linesp
+
+def animate(i):
+    #get frame data from ani function
+    path,xybar,spr1x,spr1y = ani.ani(L,y[i],H,n,d[i])
+    #set top bar data
+    lineb.set_data(xybar[0],xybar[1])
+    #set spring data
+    linesp.set_data(spr1x,spr1y)
+    #set patches for links
+    patch = patches.PathPatch(path,facecolor='gray',lw=2)
+    ax.add_patch(patch)
+    return lineb,patch,linesp
+
+anim = animation.FuncAnimation(fig,animate,init_func=init,frames=(len(d)-1),interval=20,blit=True,repeat=False)
+plt.show()
+
 
 
