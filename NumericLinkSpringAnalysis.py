@@ -1,4 +1,3 @@
-
 """ Katharin Jensen
 This code solves for the force-displacement curve for a system of links and springs (described elsewhere).
 It then creates a force vs. displacement plot."""
@@ -26,7 +25,7 @@ ea_t = 10.0 #top spring constant
 k_t = 100.0 #side spring constant
 H = 1.0 #Total height
 m = 4.0 #weibull modulus
-n_l = 5 #number of links
+n_l = 2 #number of links
 i_max = 21 #number of nodes for binning
 bing = False #apply binning? True or False
 
@@ -128,6 +127,7 @@ for i in range(len(d)-1):
             if y[i][j] >= L[j]:
                 c[j] = 2 #set indicator
                 F[j] = ea*math.atanh((d[i] - L[j])/(H - L[j]))
+                y[i][j] = L[j]
         #if it's completely collapsed
         else:
             #calculate link force
@@ -192,13 +192,19 @@ plt.legend(["Actual Force Value","Force Value for Average Length"])
 print "Elapsed time is %f seconds" % (time.clock() - start_time)
 plt.show()
 
-#animate: note, binning must be turned off for animations
+#animate: note, binning must be turned off for animations. 
+#Would not recommend using for more than 5 links, as it gets really small after that.
 
 #initialization
 #initialize figure
 fig = plt.figure()
 #set axes 
-ax = plt.axes(xlim=(0,H*n),ylim=(-.5,H*n-.5))
+ax1 = fig.add_subplot(211)
+ax1.set_xlim(-H*.6,H*n+.6*H)
+ax1.set_ylim(-.1*H,H*(n)/2+.1*H)
+ax2 = fig.add_subplot(212)
+ax2.set_xlim(0,H+.1*H)
+ax2.set_ylim(0,F_crit_avg*n_l*1.1)
 #initialize patch vertices and move codes
 verts = [[-10.,-10.],[-10.,-9.],[-9.,-9.],[-9.,-10.],[-10.,-10.]]
 codes = [Path.MOVETO,Path.LINETO,Path.LINETO,Path.LINETO,Path.CLOSEPOLY]
@@ -207,19 +213,24 @@ path = Path(verts,codes)
 #create patch
 patch = patches.PathPatch(path,facecolor='white',edgecolor='white')
 #draw initial (blank) lines and patches
-lineb, = ax.plot([],[],'k',lw=7)
-linesp, = ax.plot([],[],'k',lw=2)
-ax.add_patch(patch)
+lineb, = ax1.plot([],[],'k',lw=7)
+linesp, = ax1.plot([],[],'k',lw=2)
+ax1.add_patch(patch)
+linePd, = ax2.plot([],[])
+linePd_avg, = ax2.plot([],[],'r--')
 
+ax2.legend(["Actual Force Value","Force Value for Average Length"],fontsize='small')
 #set initialization function for animation
 def init():
     #empty lines
     linesp.set_data([],[])
     lineb.set_data([],[])
+    linePd.set_data([],[])
+    linePd_avg.set_data([],[])
     #blank patch
-    ax.add_patch(patch)
+    ax1.add_patch(patch)
     #return data
-    return lineb,patch,linesp
+    return lineb,patch,linesp,linePd_avg,linePd
 
 def animate(i):
     #get frame data from ani function
@@ -230,11 +241,12 @@ def animate(i):
     linesp.set_data(spr1x,spr1y)
     #set patches for links
     patch = patches.PathPatch(path,facecolor='gray',lw=2)
-    ax.add_patch(patch)
-    return lineb,patch,linesp
+    ax1.add_patch(patch)
+    #plot force vs. displacement
+    linePd.set_data(d[:i],P[:i])
+    #plot average force vs. displacement
+    linePd_avg.set_data(d[:i],P_avg[:i])
+    return lineb,patch,linesp,linePd_avg,linePd
 
 anim = animation.FuncAnimation(fig,animate,init_func=init,frames=(len(d)-1),interval=20,blit=True,repeat=False)
 plt.show()
-
-
-
