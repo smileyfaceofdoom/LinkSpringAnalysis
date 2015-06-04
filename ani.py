@@ -114,7 +114,14 @@ def ani(L,y,H,n,d):
     #get bar coordinates
     xybar = ([0,H*n],[H-d,H-d])
     
-    return path, xybar, spr1x, spr1y
+    #make dots on link joints
+    dotsx = []
+    dotsy = []
+    for j in range(n):
+        dotsx = dotsx + [centers[j][i][0] for i in range(3)]
+        dotsy = dotsy + [centers[j][i][1] for i in range(3)]
+    
+    dots = [dotsx]+[dotsy]   
     
     
     '''fig = plt.figure()
@@ -126,9 +133,11 @@ def ani(L,y,H,n,d):
     ax.plot([0,H*n],[H-d,H-d],'brown',lw=10)
     #draw springs
     ax.plot(spr1x,spr1y,'k',lw=2)
+    ax.plot(dots[0],dots[1],'k.')
     ax.axis('equal')
-    plt.show()'''      
-         
+    plt.show()'''     
+    
+    return path, xybar, spr1x, spr1y, dots     
     
     
     
@@ -138,5 +147,5 @@ def ani(L,y,H,n,d):
     
     
     
-#ani([.62,.41],[.25,.3],1.0,2,.3)    
+ani([.62,.41],[.25,.3],1.0,2,.3)    
     
