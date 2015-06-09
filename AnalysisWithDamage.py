@@ -25,11 +25,15 @@ ea_t = 10.0 #top spring constant (N)
 k_t = 100.0 #side spring constant (N/m)
 H = 1.0 #Total height (m)
 m = 4.0 #weibull modulus
-n_l = 3 #number of links
+n_l = 5 #number of links
 dmax = .5 #displacement before unloading (Set to H if unloading isn't desired)
 theta_crit = 50 #angle from vertical at which the links "break", degrees (set to 180 if breaking isn't desired)
 i_max = 21 #number of nodes for binning
 bing = False #apply binning? True or False
+make_ani = True #create animation? True or False
+save_ani = False #save animation as .gif? True or False
+#set link spacing
+xspacing = .5*H
 
 #makes sure the number of links to break is not larger than the total number of links
 if dmax > H:
@@ -49,6 +53,8 @@ theta_crit = theta_crit*math.pi/180
 R = [random() for x in range(n_l)]
 #for testing purposes
 #R = linspace(.3,.9,n_l)
+#pseudo-random 5-link
+#R = [0.1406236293192208, 0.557452455836349, 0.4018884612118805, 0.8610494090625574, 0.005928894753714831]
 
 
 #create length distribution
@@ -335,83 +341,16 @@ plt.legend(["Actual Force Value","Force Value for Average Length"],fontsize = 'm
 print "Elapsed time is %f seconds" % (time.clock() - start_time)
 plt.show()
 
-#animate: note, binning must be turned off for animations.
-#Would not recommend using for more than 5 links, as it gets really small after that.
-
-#initialization
-#initialize figure
-fig = plt.figure()
-#set axes
-ax1 = fig.add_subplot(211)
-ax1.set_xlim(-H*.6,H*n+.6*H)
-ax1.set_ylim(-.1*H,H*(n)/2+.1*H)
-ax2 = fig.add_subplot(212)
-ax2.set_xlim(0,H+.1*H)
-ax2.set_ylim(-.1,F_crit_avg*n_l*1.1)
-#initialize patch vertices and move codes
-verts = [[-10.,-10.],[-10.,-9.],[-9.,-9.],[-9.,-10.],[-10.,-10.]]
-codes = [Path.MOVETO,Path.LINETO,Path.LINETO,Path.LINETO,Path.CLOSEPOLY]
-#set path
-path = Path(verts,codes)
-#create patch
-patch = patches.PathPatch(path,facecolor='white',edgecolor='white')
-#create screen clearer
-clr = patches.Rectangle((-H*.6,-.1*H),H*n+.6*H+H*.6,H*(n)/2+.1*H+.1*H,facecolor='white',edgecolor='white')
-#draw initial (blank) lines and patches
-lineb, = ax1.plot([],[],'k',lw=7)
-linesp, = ax1.plot([],[],'k',lw=2)
-dots, = ax1.plot([],[],'k.')
-ax1.add_patch(patch)
-linePd, = ax2.plot([],[])
-linePd_avg, = ax2.plot([],[],'r--')
-ax2.legend(["Actual Force Value","Force Value for Average Length"],fontsize='small')
-ax1.set_title('Link Spring System')
-ax2.set_title('Force vs. Displacement')
-ax2.set_xlabel('Displacement (m)')
-ax1.set_ylabel('m')
-ax2.set_ylabel('Force (N)')
-
-#set initialization function for animation
-def init():
-    #clear patch
-    ax1.add_patch(clr)
-    #empty lines
-    linesp.set_data([],[])
-    lineb.set_data([],[])
-    dots.set_data([],[])
-    linePd.set_data([],[])
-    linePd_avg.set_data([],[])
-    #blank patch
-    ax1.add_patch(patch)
-    #return data
-    return clr,lineb,patch,linesp,dots,linePd_avg,linePd
-
-def animate(i):
-    #clear frame
-    clr = patches.Rectangle((-H*.6,-.1*H),H*n+.6*H+H*.6,H*(n)/2+.1*H+.1*H,facecolor='white',edgecolor='white')
-    ax1.add_patch(clr)
-    #get frame data from ani function
-    path,xybar,spr1x,spr1y,dot = ani.ani(L,y[i],H,n,d[i])
-    #set top bar data
-    lineb.set_data(xybar[0],xybar[1])
-    #set spring data
-    linesp.set_data(spr1x,spr1y)
-    #set patches for links
-    patch = patches.PathPatch(path,facecolor='gray',lw=2)
-    ax1.add_patch(patch)
-    #add dots
-    dots.set_data(dot[0],dot[1])
-    #plot force vs. displacement
-    linePd.set_data(d[:i],P[:i])
-    #plot average force vs. displacement
-    linePd_avg.set_data(d[:i],P_avg[:i])
-    return clr,lineb,patch,linesp,dots,linePd_avg,linePd
-
-anim = animation.FuncAnimation(fig,animate,init_func=init,frames=(len(d)-1),interval=20,blit=True,repeat=False)
-plt.show()
-
-start_ani = time.clock()
-print "begin saving animation"
-anim.save('3linkwithbreaking.gif', writer='imagemagick')
-print "done saving animation"
-print "animation save time is %f seconds" % (time.clock() - start_ani)
+if make_ani:
+    #animate: note, binning must be turned off for animations.
+    #Would not recommend using for more than 5 links, as it gets really small after that.
+    #perform figure setup
+    anim = ani.ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg)
+        
+        
+if save_ani:
+    start_ani = time.clock()
+    print "begin saving animation"
+    anim.save('3linkwithbreaking.gif', writer='imagemagick')
+    print "done saving animation"
+    print "animation save time is %f seconds" % (time.clock() - start_ani)
