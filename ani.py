@@ -6,7 +6,7 @@ import matplotlib.patches as patches
 import matplotlib.animation as animation
 import numpy as np
     
-def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg):
+def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg,save_ani,dyn=None,t_step = .1):
     #this function animates the link-spring system.
     #inputs: list of lengths, ALL y values, H, number of links, ALL d values, ALL force values, ALL average force values, spacing between links, F_crit_avg
         
@@ -138,9 +138,18 @@ def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg):
             dotsx = dotsx + [centers[j][i][0] for i in range(3)]
             dotsy = dotsy + [centers[j][i][1] for i in range(3)]
         
-        dots = [dotsx]+[dotsy]   
+        dots = [dotsx]+[dotsy] + [[]] + [[]]   
         
-        
+        #draw dots for masses if dynamics
+        if dyn != None:
+            mx = [centers [j][2][0] for j in range(n)]
+            my = [centers [j][2][1] for j in range(n)]
+            mass = [mx]+[my]
+        else:
+            mx = []
+            my = []    
+            mass = [mx]+[my]
+            
         '''fig = plt.figure()
         ax = fig.add_subplot(111)
         #draw links
@@ -154,7 +163,7 @@ def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg):
         ax.axis('equal')
         plt.show()'''     
         
-        return bot_path, top_path, xybar, spr1x, spr1y, dots     
+        return bot_path, top_path, xybar, spr1x, spr1y, dots, mass     
         
         
     
@@ -180,7 +189,7 @@ def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg):
     ax1.set_ylim(ymin,ymax)
     ax2 = fig.add_subplot(212)
     ax2.set_xlim(0,H+.1*H)
-    ax2.set_ylim(0,F_crit_avg*n*1.1)
+    ax2.set_ylim(-30,30)
     
     #initialize patch vertices and move codes
     verts = [[-10.,-10.],[-10.,-9.],[-9.,-9.],[-9.,-10.],[-10.,-10.]]
@@ -200,6 +209,7 @@ def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg):
     lineb, = ax1.plot([],[],'k',lw=7)
     linesp, = ax1.plot([],[],'blue',lw=2)
     dots, = ax1.plot([],[],'k.')
+    mass, = ax1.plot([],[],'ro')
     ax1.add_patch(patch)
     linePd, = ax2.plot([],[])
     linePd_avg, = ax2.plot([],[],'r--')
@@ -221,12 +231,13 @@ def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg):
         linesp.set_data([],[])
         lineb.set_data([],[])
         dots.set_data([],[])
+        mass.set_data([],[])
         linePd.set_data([],[])
         linePd_avg.set_data([],[])
         #blank patch
         ax1.add_patch(patch)
         #return all objects to be animated
-        return clr,lineb,patch,linesp,dots,linePd_avg,linePd
+        return clr,lineb,patch,linesp,dots,mass,linePd_avg,linePd
     
     #animate
     def animate(i):
@@ -234,7 +245,7 @@ def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg):
         clr = patches.Rectangle((-H*.6,-.1*H),H*n+.6*H+H*.6,H*(n)/2+.1*H+.1*H,facecolor='white',edgecolor='white')
         ax1.add_patch(clr)
         #get frame data from draw function
-        bot_path,top_path,xybar,spr1x,spr1y,dot = draw(L,y[i],H,n,d[i],xspacing)
+        bot_path,top_path,xybar,spr1x,spr1y,dot,masses = draw(L,y[i],H,n,d[i],xspacing)
         #set top bar data
         lineb.set_data(xybar[0],xybar[1])
         #set spring data
@@ -246,13 +257,25 @@ def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg):
         ax1.add_patch(top_patch)
         #add dots
         dots.set_data(dot[0],dot[1])
+        #add masses
+        mass.set_data(masses[0],masses[1])
         #plot force vs. displacement
         linePd.set_data(d[:i],P[:i])
         #plot average force vs. displacement
         linePd_avg.set_data(d[:i],P_avg[:i])
-        return clr,lineb,bot_patch,top_patch,linesp,dots,linePd_avg,linePd
+        return clr,lineb,bot_patch,top_patch,linesp,dots,mass,linePd_avg,linePd
+    #get framerate
+    if dyn != None:
+        inter = t_step*1000
+        if inter < 100 and save_ani == True:
+            inter = 100
+    else:
+        inter = 20
     
-    anim = animation.FuncAnimation(fig,animate,init_func=init,frames=(len(d)-1),interval=20,blit=True,repeat=False)
+    if save_ani:
+        anim = animation.FuncAnimation(fig,animate,init_func=init,frames=(len(d)-1),interval=100,blit=True,repeat=False)
+    else:
+        anim = animation.FuncAnimation(fig,animate,init_func=init,frames=(len(d)-1),interval=20,blit=True,repeat=False)
     plt.show()
     
     return anim   
