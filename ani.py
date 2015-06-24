@@ -6,7 +6,7 @@ import matplotlib.patches as patches
 import matplotlib.animation as animation
 import numpy as np
     
-def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg,save_ani,dyn=None,t_step = .1):
+def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg,save_ani,fps=50,frameskip=1,dyn=False,t_step = .1):
     #this function animates the link-spring system.
     #inputs: list of lengths, ALL y values, H, number of links, ALL d values, ALL force values, ALL average force values, spacing between links, F_crit_avg
         
@@ -141,7 +141,7 @@ def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg,save_ani,dyn=None,t_step = .1):
         dots = [dotsx]+[dotsy] + [[]] + [[]]   
         
         #draw dots for masses if dynamics
-        if dyn != None:
+        if dyn:
             mx = [centers [j][2][0] for j in range(n)]
             my = [centers [j][2][1] for j in range(n)]
             mass = [mx]+[my]
@@ -189,7 +189,7 @@ def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg,save_ani,dyn=None,t_step = .1):
     ax1.set_ylim(ymin,ymax)
     ax2 = fig.add_subplot(212)
     ax2.set_xlim(0,H+.1*H)
-    ax2.set_ylim(-30,30)
+    ax2.set_ylim(0,F_crit_avg*n*1.1)
     
     #initialize patch vertices and move codes
     verts = [[-10.,-10.],[-10.,-9.],[-9.,-9.],[-9.,-10.],[-10.,-10.]]
@@ -215,7 +215,7 @@ def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg,save_ani,dyn=None,t_step = .1):
     linePd_avg, = ax2.plot([],[],'r--')
     
     #label figure
-    ax2.legend(["Actual Force Value","Force Value for Average Length"],fontsize='small')
+    #ax2.legend(["Actual Force Value","Force Value for Average Length"],fontsize='small')
     ax1.set_title('Link Spring System')
     ax2.set_title('Force vs. Displacement')
     ax2.set_xlabel('Displacement (m)')
@@ -245,7 +245,7 @@ def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg,save_ani,dyn=None,t_step = .1):
         clr = patches.Rectangle((-H*.6,-.1*H),H*n+.6*H+H*.6,H*(n)/2+.1*H+.1*H,facecolor='white',edgecolor='white')
         ax1.add_patch(clr)
         #get frame data from draw function
-        bot_path,top_path,xybar,spr1x,spr1y,dot,masses = draw(L,y[i],H,n,d[i],xspacing)
+        bot_path,top_path,xybar,spr1x,spr1y,dot,masses = draw(L,y[frameskip*i],H,n,d[frameskip*i],xspacing)
         #set top bar data
         lineb.set_data(xybar[0],xybar[1])
         #set spring data
@@ -260,22 +260,25 @@ def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg,save_ani,dyn=None,t_step = .1):
         #add masses
         mass.set_data(masses[0],masses[1])
         #plot force vs. displacement
-        linePd.set_data(d[:i],P[:i])
+        linePd.set_data(d[:frameskip*i],P[:frameskip*i])
         #plot average force vs. displacement
-        linePd_avg.set_data(d[:i],P_avg[:i])
+        if dyn:
+            linePd_avg.set_data([],[])
+        else:
+            linePd_avg.set_data(d[:frameskip*i],P_avg[:frameskip*i])
         return clr,lineb,bot_patch,top_patch,linesp,dots,mass,linePd_avg,linePd
     #get framerate
-    if dyn != None:
+    if dyn:
         inter = t_step*1000
         if inter < 100 and save_ani == True:
             inter = 100
     else:
-        inter = 20
+        inter = (1/fps)*1000
     
     if save_ani:
-        anim = animation.FuncAnimation(fig,animate,init_func=init,frames=(len(d)-1),interval=100,blit=True,repeat=False)
+        anim = animation.FuncAnimation(fig,animate,init_func=init,frames=(len(d)-1)/frameskip,interval=100,blit=True,repeat=False)
     else:
-        anim = animation.FuncAnimation(fig,animate,init_func=init,frames=(len(d)-1),interval=20,blit=True,repeat=False)
+        anim = animation.FuncAnimation(fig,animate,init_func=init,frames=(len(d)-1)/frameskip,interval=inter,blit=True,repeat=False)
     plt.show()
     
     return anim   

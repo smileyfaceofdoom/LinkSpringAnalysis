@@ -13,34 +13,33 @@ from matplotlib.path import Path
 import matplotlib.patches as patches
 import matplotlib.animation as animation
 import ani
+from RK4Dyn import RK4
+import dfunc
 
 #set parameters
 ea_t = 10.0 #top spring constant thing
 k_t = 100.0 #side spring constant
 H = 1.0 #max height
 Wm = 4.0 #Weibull modulus
-m = 1 #mass (kg)
-n_l = 2 #number of links
+m = 1.0 #mass (kg)
+g = 0 #acceleration of gravity
+n_l = 5 #number of links
 dt = .02 #time step (s)
 t_stop = 20.0 #time to stop (s)
 xspacing = .5*H #spacing for animation
-testing = False
+testing = True
 auto_u_fix = True #if the displacement goes higher than the allowed, set to max allowed value? Yes if True. If False, will break out of loop.
-
-#set displacement function u(t) (either a function with input t or a list of displacements at even time intervals)
-def ufunc(t):
-    
-    u = math.sin(t*6*math.pi/20.0 - math.pi/2)/4 + .25
-    
-    return u
-
-#create list of times
-t_list = linspace(0,t_stop,(t_stop/dt))
+save_ani = False
 
 
 #create list of displacements
-u = [ufunc(t) for t in t_list]
-print u
+u1 = dfunc.linepath(int(t_stop/(3*dt)),H/2)
+u2 = dfunc.pausepath(int(t_stop/(3*dt)),H/2)
+u3 = dfunc.linepath(int(t_stop/(3*dt)),H,d0=H/2)
+
+u = u1 + u2 + u3
+
+
 #normalize
 ea = ea_t/n_l
 k = k_t/n_l
@@ -49,7 +48,8 @@ k = k_t/n_l
 #generate random numbers
 if testing:
     #for testing purposes
-    R = [.4,.3]
+    R = [0.1406236293192208, 0.557452455836349, 0.4018884612118805, 0.8610494090625574, 0.005928894753714831]
+    #R = [.5]
 else:
     #generate list of random numbers
     R = [random() for x in range(n_l)]
@@ -64,6 +64,8 @@ def length_distribution(r):
    
 #find length distribution
 L = length_distribution(R)
+print "L", L
+#L = [.7]
 #find average length
 L_avg = mean(L)
 n = n_l    
@@ -86,7 +88,7 @@ c_avg = 0
 #find critical buckling values
 F_crit = [k*Li/4 for Li in L]
 F_crit_avg = k*L_avg/4
-
+print "Fcrit", F_crit
 
 #calculate the force at each displacement value
 for i in range(len(u)):
@@ -115,40 +117,50 @@ for i in range(len(u)):
             #calculate force in link
             F[j] = ea*math.atanh(u[i]/(H-L[j]))
             y[i][j] = 0
+            #print F[j]
             #check to see if link has buckled
-            if (F[j] + 9.81*m) >= F_crit[j]:
+            if (F[j] + g*m) >= F_crit[j]:
                 c[j] = 1 #set indicator
         #if the link is currently buckling:
         elif c[j] == 1:
             #solve ODE for y with predictor-corrector method
             if (u[i-1]-y[i-1][j])/(H-L[j]) <= -1:
-                a = (k/(4*m))*(L[j]-y[i-1][j]) - (ea/m)*math.atanh(-.9999999999999999) - 9.81
+                print "invalid atanh argument"
+                a = (k/(4*m))*(L[j]-y[i-1][j]) - (ea/m)*math.atanh(-.9999999999999999) - g
+                print "a", a
+            elif (u[i-1]-y[i-1][j])/(H-L[j]) >= 1:
+                print "invalid atanh argument"
+                a = (k/(4*m))*(L[j]-y[i-1][j]) - (ea/m)*math.atanh(.9999999999999999) - g
+                print "a", a
             else:
-                a = (k/(4*m))*(L[j]-y[i-1][j]) - (ea/m)*math.atanh((u[i-1]-y[i-1][j])/(H-L[j])) - 9.81
+                a = (k/(4*m))*(L[j]-y[i-1][j]) - (ea/m)*math.atanh((u[i-1]-y[i-1][j])/(H-L[j])) - g
+                print "a", a
             v1 = v + a*dt
-            y1 = y[i-1][j] - v1*dt
-            print "y1", y1
+            y1 = y[i-1][j] - v*dt
+            #print "y1", y1
             
             if u[i]-y1 >= H-L[j]:
                 y1 = u[i]-H+L[j]+.001
-                print "adj y1", y1
+                #print "adj y1", y1
             elif u[i]-y1 <= L[j]-H:
                 y1 = u[i]+H-L[j]-.001
-                print "adj y1", y1
-            print "u", u[i]
-            print "L", L[j]
-            print "atanh", (u[i]-y1)/(H-L[j])
+                #print "adj y1", y1
             
-            a1 = (k/(4*m))*(L[j]-y1) - (ea/m)*math.atanh((u[i]-y1)/(H-L[j])) - 9.81
+            a1 = (k/(4*m))*(L[j]-y1) - (ea/m)*math.atanh((u[i]-y1)/(H-L[j])) - g
             v = v + (dt/2)*(a1+a)
             y[i][j] = y[i-1][j] - (dt/2)*(v1+v)
             
+            #y[i][j],v1 = RK4(u[i-1],u[i],y[i-1][j],v,H,L[j],k,ea,m)
+            
+            #set new v
+            #v = v1
+            
             if u[i]-y[i][j] >= H-L[j]:
                 y[i][j] = u[i]-H+L[j]+.001
-                print "adj y[i][j]", y[i][j]
+                #print "adj y[i][j]", y[i][j]
             elif u[i]-y[i][j] <= L[j]-H:
                 y[i][j] = u[i]+H-L[j]-.001
-                print "adj y[i][j]", y[i][j]
+                #print "adj y[i][j]", y[i][j]
             
             #calculate force
             F[j] = ea*math.atanh((u[i]-y[i][j])/(H-L[j]))
@@ -173,35 +185,47 @@ for i in range(len(u)):
         #if link is completely collapsed
         else:
             #calculate link force
-            print "c2 u", u[i]
-            print "c2 L", L[j]
-            print "atanh", (u[i] - L[j])/(H - L[j])
+#             print "c2 u", u[i]
+#             print "c2 L", L[j]
+#             print "atanh", (u[i] - L[j])/(H - L[j])
             
             #store y
             y[i][j] = L[j]
             #set velocity back to zero
             v = 0
-            #check to see if link is uncollapsed
-            if u[i]-L[j] <= -(H-L[j]):
-                c[j]=1
-                F[j] = F[j-1]
+            
+            if (u[i] - L[j])/(H - L[j]) <= -1:
+                F[j] = ea*math.atanh(-.9999999999999999)
             else:
                 F[j] = ea*math.atanh((u[i] - L[j])/(H - L[j]))
+            #check to see if link is uncollapsed
+            if F[j] <= -g*m:
+                c[j]=1
+                #F[j] = F[j-1]
+            #else:
+                
     #calculate total force
     P[i] = sum(F)
 
 plt.plot(u,P)
-plt.axis([0,H+.1*H,-30,30])
+plt.axis([0,H+.1*H,0,16])
 plt.xlabel("Displacement (m)")
 plt.ylabel("Force (N)")
 plt.title("Force vs. Displacement")
 plt.show()
 
-save_ani = False
+
 P_avg = [0]*len(u)
-anim = ani.ani(L,y,H,n,u,P,P_avg,xspacing,F_crit_avg,save_ani,dyn=True)
+anim = ani.ani(L,y,H,n,u,P,P_avg,xspacing,F_crit_avg,save_ani,frameskip=1,dyn=True,t_step = dt)
 
-
+if save_ani:
+    #save animation as GIF
+    #IMPORTANT NOTE: This will probably take 1-2 hours. Plan accordingly.
+    start_ani = time.clock()
+    print "begin saving animation"
+    anim.save('5linkdynex3.gif', writer='imagemagick')
+    print "done saving animation"
+    print "animation save time is %f seconds" % (time.clock() - start_ani)
 
 
 
