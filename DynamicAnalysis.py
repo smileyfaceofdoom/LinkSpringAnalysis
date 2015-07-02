@@ -33,11 +33,7 @@ save_ani = False
 
 
 #create list of displacements
-u1 = dfunc.linepath(int(t_stop/(3*dt)),H/2)
-u2 = dfunc.pausepath(int(t_stop/(3*dt)),H/2)
-u3 = dfunc.linepath(int(t_stop/(3*dt)),H,d0=H/2)
-
-u = u1 + u2 + u3
+u = dfunc.cospath(int(t_stop/dt),3,H,.5)
 
 
 #normalize

@@ -1,4 +1,3 @@
-
 """ Katharin Jensen
 This code solves for the force-displacement curve for a system of links and springs (described elsewhere).
 It then creates a force vs. displacement plot."""
@@ -26,12 +25,12 @@ ea_t = 10.0 #top spring constant
 k_t = 100.0 #side spring constant
 H = 1.0 #Total height
 m = 4.0 #weibull modulus
-n_l = 10 #number of links
-i_max = 21 #number of nodes for binning
+n_l = 5 #number of links
+i_max = 6 #number of nodes for binning
 bing = False #apply binning? True or False
 make_ani = True #create animation? True or False
 save_ani = False #save animation as .gif? True or False
-testing = False #Use a non-random list of R values for testing purposes
+testing = True #Use a non-random list of R values for testing purposes
 #set link spacing for animation
 xspacing = .5*H
     
@@ -42,7 +41,9 @@ k = k_t/n_l
 #generate list of random numbers
 if testing:
     #for testing purposes
-    R = linspace(.3,.8,n_l)
+    #R = linspace(.3,.8,n_l)
+    #pseudo-random 5-link
+    R = [0.1406236293192208, 0.557452455836349, 0.4018884612118805, 0.8610494090625574, 0.005928894753714831]
 else:
     #generate list of random numbers
     R = [random() for x in range(n_l)]
@@ -67,6 +68,7 @@ if bing:
 else:
     #find length distribution
     L = length_distribution(R)
+    #L=[.5]
     #find average length
     L_avg = mean(L)
     n = n_l
@@ -75,7 +77,10 @@ else:
 #setup for force calculations
 
 #make displacement distribution
-d = linspace(0,H,1000)
+if save_ani:
+    d = linspace(0,H,200)
+else:
+    d = linspace(0,H,1000)
 #initialize y-values
 y = [[0]*n for x in range(len(d)-1)]
 y_avg = [0]*(len(d)-1)
@@ -203,13 +208,13 @@ if make_ani:
     #animate: note, binning must be turned off for animations.
     #Would not recommend using for more than 5 links, as it gets really small after that.
     #perform figure setup
-    anim = ani.ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg)
+    anim = ani.ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg,save_ani,fps=50,frameskip=1,dyn=False,t_step = .1)
 
 if save_ani:
     #save animation as GIF
     #IMPORTANT NOTE: This will probably take 1-2 hours. Plan accordingly.
     start_ani = time.clock()
     print "begin saving animation"
-    anim.save('testani6.gif', writer='imagemagick')
+    anim.save('5linkex2.gif', writer='imagemagick')
     print "done saving animation"
     print "animation save time is %f seconds" % (time.clock() - start_ani)

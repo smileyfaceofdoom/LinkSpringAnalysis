@@ -50,11 +50,11 @@ k = k_t/n_l
 theta_crit = theta_crit*math.pi/180
 
 #generate list of random numbers
-R = [random() for x in range(n_l)]
+#R = [random() for x in range(n_l)]
 #for testing purposes
 #R = linspace(.3,.9,n_l)
 #pseudo-random 5-link
-#R = [0.1406236293192208, 0.557452455836349, 0.4018884612118805, 0.8610494090625574, 0.005928894753714831]
+R = [0.1406236293192208, 0.557452455836349, 0.4018884612118805, 0.8610494090625574, 0.005928894753714831]
 
 
 #create length distribution
@@ -86,7 +86,7 @@ else:
 #initialize displacement list
 d = [0]
 ldng = 1 #set whether loading (1) or unloading (0)
-#initialize y-values2
+#initialize y-values
 y = [[0]*n]
 y_avg = [0]
 #initialize total force list
@@ -124,13 +124,20 @@ while i <= 100000:
     #if not enough links have broken yet:
     if d[i-1] >= dmax:
         ldng = 0
-    
-    if ldng == 1: #if loading    
-        #increment d forward
-        d.append(i*.001*H)
-    else: #if unloading
-        #increment d backward
-        d.append(d[i-1]-.001*H)
+    if save_ani:
+        if ldng == 1: #if loading    
+            #increment d forward
+            d.append(i*.005*H)
+        else: #if unloading
+            #increment d backward
+            d.append(d[i-1]-.005*H)
+    else:
+        if ldng == 1: #if loading    
+            #increment d forward
+            d.append(i*.001*H)
+        else: #if unloading
+            #increment d backward
+            d.append(d[i-1]-.001*H)
     #stop if d has displaced further than H
     if d[i] >= H:
         #make d the same length as the force lists
@@ -331,7 +338,7 @@ while i <= 100000:
     
 
 #plot
-plt.plot(d,P,d,P_avg,'r--')
+plt.plot(d,P,d,P_avg,'r--',lw=2)
 plt.axis([0,H+.1*H,0,F_crit_avg*n_l*1.1])
 plt.xlabel("Displacement (m)")
 plt.ylabel("Force (N)")
@@ -345,12 +352,12 @@ if make_ani:
     #animate: note, binning must be turned off for animations.
     #Would not recommend using for more than 5 links, as it gets really small after that.
     #perform figure setup
-    anim = ani.ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg)
+    anim = ani.ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg,save_ani)
         
         
 if save_ani:
     start_ani = time.clock()
     print "begin saving animation"
-    anim.save('3linkwithbreaking.gif', writer='imagemagick')
+    anim.save('5linkexwdamage2.gif', writer='imagemagick')
     print "done saving animation"
     print "animation save time is %f seconds" % (time.clock() - start_ani)

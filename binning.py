@@ -1,5 +1,9 @@
 def binning(r_p,i_max):
-    #apply binning to a set of random numbers to reduce computational cost. Uses 2 Gauss points per cell
+    import math
+    #This function applies binning to a set of random numbers to reduce computational cost. It uses 2 Gauss points per cell
+    #inputs: the list of points to be binned (r_p), the number of bins (i_max)
+    #outputs: The binned points (r_b), the weights of the binned points (W_b), the new number of points (n)
+    
     #set number of points and nodes 
     p_max = len(r_p) #number of points
     

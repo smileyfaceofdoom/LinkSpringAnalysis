@@ -54,7 +54,8 @@ def vpath(s,vs,H,per,d0=0):
 #sin/cos shaped paths
 def cospath(s,w,H,per,d0=0):
     #This function makes a cosine wave shaped path
-    #inputs: number of values (s), number of waves (w), maximum possible displacement (H), fraction of H to displace t0 (per), starting displacement (d0) (default 0)
+    #inputs: number of values (s), number of waves (w), 
+    #        maximum possible displacement (H), fraction of H to displace t0 (per), starting displacement (d0) (default 0)
     #outputs: list of displacement values (d)
     
     #make sure w is a float
@@ -89,7 +90,7 @@ def pausepath(s,dval):
 # s = range(len(d))
 
 # s = range(1000)
-# d = cospath(1000,2,1.0,.5,.25)
+# d = cospath(1000,2.3,1.0,.5,.25)
 
 # s = range(1000)
 # d = pausepath(1000,.75)

@@ -3,12 +3,13 @@ import math
 import matplotlib.pyplot as plt
 from numpy import linspace
 
-"""Uses the Newton Raphson method to find the zero of a function
-Inputs: function, initial guess, derivative, other arguments (in tuple form), tolerance, and max iterations
-Outputs: location of zero, if found, or various useful data if zero is not found."""
 
 
 def newton_raphson(f,x0,fprime,args=(),tol=.001,Imax=1000,zerotol=.01):
+#     Uses the Newton Raphson method to find the zero of a function
+#     Inputs: function, initial guess, derivative, other arguments (in tuple form), tolerance, and max iterations
+#     Outputs: location of zero, if found, or various useful data if zero is not found.
+
     #initialize
     err = 10*tol #initial error
     I = 0 #iteration counter
@@ -68,16 +69,6 @@ def newton_raphson(f,x0,fprime,args=(),tol=.001,Imax=1000,zerotol=.01):
                 plt.title("function and initial guess")
                 plt.show()
             
-    elif abs(fv) > zerotol:
-        print "root finding: converged but did not find zero"
-        print "root finding: function value of %f at location %f" % (fv,x)
-        print "root finding: arguments: ", args
-        #plot function and mark initial guess
-        y = linspace(0,x0*2,100)
-        fpl=[f(z,*args) for z in y]
-        plt.plot(y,fpl,[x0,x0],[-.1,.1],'r')
-        plt.title("function and initial guess")
-        plt.show()
     else:
         return x        
 
