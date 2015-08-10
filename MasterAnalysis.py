@@ -39,15 +39,16 @@ start_time = time.clock()
 
 #set type of simulation to run.
 dyn = True # sets whether the simulation is dynamic (True) or quasistatic (False).
-damage = True #sets whether or not to add damage effects
+damage = False #sets whether or not to add damage effects
+plasticity = True
 bing = False #sets whether or not to use binning
-testing = False #sets whether to run in testing mode, with a non-random initial number distribution
+testing = True #sets whether to run in testing mode, with a non-random initial number distribution
 auto_dfix = True #If true, if a displacement value is >= H, it will automatically be set to .9999*H. If false, the code won't run if a d value >= H.
-multirun = True #sets whether the simulation will run multiple times to make a comparison plot (if true, won't plot average or run animation)
+multirun = False #sets whether the simulation will run multiple times to make a comparison plot (if true, won't plot average or run animation)
 
 
 #set animation options
-make_ani = False
+make_ani = True
 save_ani = False
 auto_frameskip = True #automatically sets frameskip so that if save_ani is on, the animation will play in the same length of time but at 10fps
 
@@ -59,23 +60,25 @@ ea_t = 10.0 #top spring constant (N)
 k_t = 100.0 #side spring constant (N/m)
 H = 1.0 #total height (m)
 Wm = 4.0 #Weibull modulus
-n_l = 10 #number of links
+n_l = 5 #number of links
 steps = 1000 #number of displacement steps (note, if dyn=True this will be overwritten by t_stop/dt)
 
 #for binning
-i_max = 21 #number of bins
+i_max = 10 #number of bins
 
-#for damage
-theta_crit = 20.0 #breaking angle, measured from vertical (degrees)
+#for damage/plasticity
+theta_crit = 30.0 #breaking angle, measured from vertical (degrees)
+F_slide = 5.0 #critical slipping force for plasticity element (N)
 
 #for dynamics
 m = 1.0 #mass (kg)
 g = 0.0 #acceleration of gravity (m/s^2)
-dt = .01 #time step (s)
-t_stop = 10.0 #total time (s)
+dt = .02 #time step (s)
+t_stop = 20.0 #total time (s)
 #if the animation is dynamic, set the number of steps based on the stop time and time step
 if dyn:
     steps = int(t_stop/dt)
+    print steps
 
 #for animation
 xspacing = .5*H #spacing between links in animation (m)
@@ -96,9 +99,11 @@ runs = 100 #number of runs for multirun
 
 #create list of displacements using dfunc
 d = dfunc.cospath(steps,3,H,.5)
-#d1 = dfunc.linepath(steps/4,H*.4)
-#d2 = dfunc.pausepath(steps/2,H*.4)
-# d3 = dfunc.linepath(steps/3,H,d0=H*.5)
+#d = dfunc.linepath(steps,H)
+#d1 = dfunc.linepath(steps/2,H*.5)
+#d2 = dfunc.pausepath(steps/2,H*.5)
+#d3 = dfunc.linepath(steps/2,0,d0=H*.5)
+#d = dfunc.vpath(steps,1,H,.6)
 #d=d1+d2
 
 
@@ -162,6 +167,9 @@ if type(Wm) != float:
 #theta_crit    
 if type(theta_crit) != float:
     theta_crit = float(theta_crit)
+#F_slide    
+if type(F_slide) != float:
+    F_slide = float(F_slide)
 #m    
 if type(m) != float:
     m = float(m)
@@ -184,7 +192,7 @@ if type(xspacing) != float:
 #---------------------main analysis function-----------------------------------------------------------
 
 
-def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, m, g, dt, t_stop, dyn, damage, bing, testing):
+def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, m, g, dt, t_stop, dyn, damage, plasticity, bing, testing):
     #This function performs the main analysis
     #inputs: all basic, damage, and dynamic parameters, except steps.
     #        list of displacements (d)
@@ -207,7 +215,7 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, m, g, dt, t_stop, dyn,
         #for testing purposes
         R = [0.1406236293192208, 0.557452455836349, 0.4018884612118805, 0.8610494090625574, 0.005928894753714831]
         #R = linspace(.3*H,.8*H,n_l)
-        #R = [.5]
+        #R = [0.1406236293192208]
     else:
         #generate list of random numbers
         R = [random() for x in range(n_l)]
@@ -241,6 +249,7 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, m, g, dt, t_stop, dyn,
         #set number of links to calculate to the number of links specified
         n = n_l
     
+    
     #initialize lists
     
     #y lists
@@ -269,29 +278,50 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, m, g, dt, t_stop, dyn,
     theta_crit = theta_crit*math.pi/180.0
     
     
+    #find critical distance for sliding for plasticity
+    if plasticity:
+        x_crit = F_slide/k
+        #initialize distances for plasticity
+        x_plas = [0]*n
+        x = [0]*n
+        x_avg = 0
+        x_plas_avg = 0
+    
     #set up stuff for root finding if not using dynamic analysis
     if not dyn:
-        #set initial root guesses
-        F_old = F_crit #initial guesses
-        F_old_avg = F_crit_avg #initial guess for average
-        
-        #define function to find root of
-        def root_g(f,d,L,k,H,ea):
-            return L*(1-(4*f)/(k*L)) + (H-L)*math.tanh(f/ea) - d
-        
-        #define derivative of function
-        def root_gprime(f,d,L,k,H,ea):
-            return -4/k + ((H-L)/ea)*(1-(math.tanh(f/ea))**2)
+        #if plasticity is not applied 
+        if not plasticity:
+            #set initial root guesses
+            F_old = F_crit #initial guesses
+            F_old_avg = F_crit_avg #initial guess for average
+            
+            #define function to find root of
+            def root_g(f,d,L,k,H,ea):
+                return L*(1-(4*f)/(k*L)) + (H-L)*math.tanh(f/ea) - d
+            
+            #define derivative of function
+            def root_gprime(f,d,L,k,H,ea):
+                return -4/k + ((H-L)/ea)*(1-(math.tanh(f/ea))**2)
+            
+        #if placticity is applied    
+        else:
+            #define function to find root of
+            def root_g(y,d,L,k,H,ea,x_plas):
+                return -ea*math.atanh((d-y)/(H-L)) + k*(L-y)*(.25 - x_plas/(2*math.sqrt(2*L*y-y**2)))
+            
+            
+            
     #set up stuff for ODE solving if using dynamic analysis
     else:
         #initialize velocity
         v = [0]*n
         v_avg = 0
     
-    
     #calculate force at each displacement value
     for i in range(len(d)):
-        #print i   
+#         if its >= 5:
+#             break
+        print i   
         
         #initialize list of link forces for this displacement
         F = [0]*n
@@ -304,7 +334,7 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, m, g, dt, t_stop, dyn,
             #if the link isn't buckled, check to see if the displacement has jumped past the top of the link
             if c[j] == 0 and d[i] >= H - L[j]:
                 #if so, change the link to buckling
-                c[j] = 1   
+                c[j] = 1 
                 
             #if the link isn't buckled
             if c[j] == 0:#-----------------------------------------------------
@@ -349,23 +379,54 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, m, g, dt, t_stop, dyn,
                     #if the link isn't broken
                     if b[j] == 0:
                     
-                        #set the guess
-                        guess = F_old[j]
-                        
                         #set zerotol
                         if L[j] < .3:
                             ztol = .1
                         else:
                             ztol = .01
                         
-                        #calculate the force
-                        F[j] = MyRootFinding.newton_raphson(root_g,guess,root_gprime,args=(d[i],L[j],k,H,ea),tol=.001,Imax=10*len(d),zerotol=ztol)
+                            
+                        #find the root
+                        if not plasticity:
+                            #set function arguments
+                            args = (d[i],L[j],k,H,ea)
+                            #find root
+                            F[j] = MyRootFinding.newton_raphson(root_g,F_old[j],root_gprime,args=args,tol=.001,Imax=10*len(d),zerotol=ztol)
+                        else:
+                            #find spring displacement
+                            d_s = x[j] - x_plas[j]
+                            #set function arguments
+                            args = (d[i],L[j],k,H,ea,x_plas[j])
+                            #print 'args', args
+                            #find boundaries for bisection method
+                            #set lower boundary to either 0 or the smallest number for atanh
+                            if d[i]-H+L[j] < 0:
+                                b_low = .0001
+                            else:
+                                b_low = (d[i]-H+L[j])*1.0001
+                            #set upper boundary to the largest number for atanh
+                            b_high = (H-L[j]+d[i])*.9999
+                            y[i][j] = MyRootFinding.bisection(root_g,b_low,b_high,args=args)
                         
-                        #assign current value as next guess value, to be more accurate and help prevent diverging
-                        F_old[j] = F[j]
+                        #Find other required values
+                        if plasticity:
+                            #store y value
+                            #find force
+                            F[j] = ea*math.atanh((d[i]-y[i][j])/(H-L[j]))
+                            #find new x
+                            x[j] = math.sqrt(2*L[j]*y[i][j]-y[i][j]**2)/2
+                            #find new x_plas if x_plas is changing
+                            if d_s > x_crit:
+                                x_plas[j] = x[j] - x_crit
+                            elif d_s < -x_crit:
+                                x_plas[j] = x[j] + x_crit
+                            #print 'x_plas', x_plas[j]
+                        else:
+                            #assign current value as next guess value, to be more accurate and help prevent diverging
+                            F_old[j] = F[j]
+                            #find and store y value
+                            y[i][j] = L[j] - 4*F[j]/k
                         
-                        #find and store y value
-                        y[i][j] = L[j] - 4*F[j]/k
                     #if the link is broken
                     else:
                         #the side spring force is 0, so the applied force is also 0
@@ -379,15 +440,32 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, m, g, dt, t_stop, dyn,
                     
                     #if the link isn't broken
                     if b[j] == 0:
-                        #run Runge Kutta method to find y and the velocity
-                        y[i][j],v1 = RK4Dyn.RK4(dt,d[i-1],d[i],y[i-1][j],v[j],H,L[j],k,ea,m,g)
-                        #store new velocity value
-                        v[j] = v1
+                        if not plasticity:
+                            #run Runge Kutta method to find y and the velocity
+                            y[i][j],v[j] = RK4Dyn.RK4_link(dt,d[i-1],d[i],y[i-1][j],v[j],H,L[j],k,ea,m,g)
+                        else:
+                            #find spring displacement
+                            d_s = x[j] - x_plas[j]
+                            #run Runge Kutta method to find y and the velocity
+                            y[i][j],v[j] = RK4Dyn.RK4_plaslink(dt,d[i-1],d[i],y[i-1][j],v[j],H,L[j],k,ea,m,g,x_plas[j])
+                            #find new x
+                            if y[i][j] < 0:
+                                x[j] = 0
+                            elif y[i][j] > L[j]:
+                                x[j] = L[j]/2
+                            else:
+                                x[j] = math.sqrt(2*L[j]*y[i][j]-y[i][j]**2)/2
+                            #find new x_plas if x_plas is changing
+                            if d_s > x_crit:
+                                x_plas[j] = x[j] - x_crit
+                            elif d_s < -x_crit:
+                                x_plas[j] = x[j] + x_crit
                     else:
                         #run Runge Kutta method to find y and the velocity, with k=0 for breakage
-                        y[i][j],v1 = RK4Dyn.RK4(dt,d[i-1],d[i],y[i-1][j],v[j],H,L[j],0,ea,m,g)
-                        #store new velocity value
-                        v[j] = v1
+                        y[i][j],v[j] = RK4Dyn.RK4_link(dt,d[i-1],d[i],y[i-1][j],v[j],H,L[j],0,ea,m,g)
+                    #correct v value if necessary to prevent divergence
+                    if v[j] > 1000 or math.isnan(v[j]):
+                        v[j] = 1000
                     
                     #correct y value if necessary
                     #make sure the displacement doesn't pass the top of the link
@@ -427,20 +505,34 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, m, g, dt, t_stop, dyn,
                         v[j] = 0
                 
                 #check to see if the link has unbuckled
-                if y[i][j] < 0:
-                    #set y correctly
-                    y[i][j] = 0
-                    #set indicator to unbuckled
-                    c[j] = 0
-                    #recalculate force to reflect unbuckling
-                    #if the atanh argument is >= 1
-                    if d[i] >= (H-L[j]):
-                        #make the force as large as it can be
-                        F[j] = ea*math.atanh(.9999999999999999)
-                    #otherwise calculate the force normally
-                    else:
-                        F[j] = ea*math.atanh(d[i]/(H - L[j]))
-            
+                if not plasticity:
+                    if y[i][j] <= 0:
+                        #set y correctly
+                        y[i][j] = 0
+                        #set indicator to unbuckled
+                        c[j] = 0
+                        #recalculate force to reflect unbuckling
+                        #if the atanh argument is >= 1
+                        if d[i] >= (H-L[j]):
+                            #make the force as large as it can be
+                            F[j] = ea*math.atanh(.9999999999999999)
+                        #otherwise calculate the force normally
+                        else:
+                            F[j] = ea*math.atanh(d[i]/(H - L[j]))
+                else:
+                    if (y[i][j] > 10*y[i-1][j] and y[i-1][j] != 0 and not dyn) or (y[i][j] < 0 and dyn):
+                        #set y correctly
+                        y[i][j] = 0
+                        #set indicator to unbuckled
+                        c[j] = 0
+                        #recalculate force to reflect unbuckling
+                        #if the atanh argument is >= 1
+                        if d[i] >= (H-L[j]):
+                            #make the force as large as it can be
+                            F[j] = ea*math.atanh(.9999999999999999)
+                        #otherwise calculate the force normally
+                        else:
+                            F[j] = ea*math.atanh(d[i]/(H - L[j]))
             
             #if the link is completely collapsed
             elif c[j] == 2:#------------------------------------------------------------------
@@ -519,16 +611,57 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, m, g, dt, t_stop, dyn,
                 if b_avg == 0:
                 
                     #set the guess
-                    guess = F_old_avg
+                    if plasticity:
+                        if y_avg[i-1] == 0:
+                            guess = .00001
+                        else:
+                            guess = y_avg[i-1]
+                    else:
+                        guess = F_old_avg
                     
-                    #calculate the force
-                    F_avg = MyRootFinding.newton_raphson(root_g,guess,root_gprime,args=(d[i],L_avg,k,H,ea),tol=.001,Imax=10*len(d),zerotol=.01)
-                    
-                    #assign current value as next guess value, to be more accurate and help prevent diverging
-                    F_old_avg = F_avg
-                    
-                    #find and store y value
-                    y_avg[i] = L_avg - 4*F_avg/k
+                    #find the root
+                    if not plasticity:
+                            #set function arguments
+                            args = (d[i],L_avg,k,H,ea)
+                            #find root
+                            F_avg = MyRootFinding.newton_raphson(root_g,guess,root_gprime,args=(d[i],L_avg,k,H,ea),tol=.001,Imax=10*len(d),zerotol=.01)
+                    else:
+                        #find spring displacement
+                        d_s_avg = x_avg - x_plas_avg
+                        #set function arguments
+                        args_avg = (d[i],L_avg,k,H,ea,x_plas_avg)
+                        #print 'args', args
+                        #find boundaries for bisection method
+                        #set lower boundary to either 0 or the smallest number for atanh
+                        if d[i]-H+L_avg < 0:
+                            b_low_avg = .0001
+                        else:
+                            b_low_avg = (d[i]-H+L_avg)*1.0001
+                        #set upper boundary to the largest number for atanh
+                        b_high_avg = (H-L_avg+d[i])*.9999
+                        y_avg[i] = MyRootFinding.bisection(root_g,b_low_avg,b_high_avg,args=args_avg)
+                        
+                    #Find other required values
+                    if plasticity:
+                        #store y value
+                        #find force
+                        F_avg = ea*math.atanh((d[i]-y_avg[i])/(H-L_avg))
+                        print 'F', F_avg
+                        #find new x
+                        x_avg = math.sqrt(2*L_avg*y_avg[i]-y_avg[i]**2)/2
+                        #find new x_plas if x_plas is changing
+                        if d_s_avg > x_crit:
+                            x_plas_avg = x_avg - x_crit
+                        elif d_s_avg < -x_crit:
+                            x_plas_avg = x_avg + x_crit
+                        #print 'x_plas', x_plas[j]
+                    else:
+                        #assign current value as next guess value, to be more accurate and help prevent diverging
+                        F_old_avg = F_avg
+                        #find and store y value
+                        y_avg[i] = L_avg - 4*F_avg/k
+                        
+                        
                 #if the link is broken
                 else:
                     #the side spring force is 0, so the applied force is also 0
@@ -543,14 +676,17 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, m, g, dt, t_stop, dyn,
                 #if the link isn't broken
                 if b[j] == 0:
                     #run Runge Kutta method to find y and the velocity
-                    y_avg[i],v1_avg = RK4Dyn.RK4(dt,d[i-1],d[i],y_avg[i-1],v_avg,H,L_avg,k,ea,m,g)
+                    y_avg[i],v1_avg = RK4Dyn.RK4_link(dt,d[i-1],d[i],y_avg[i-1],v_avg,H,L_avg,k,ea,m,g)
                     #store new velocity value
                     v_avg = v1_avg
                 else:
                     #run Runge Kutta method to find y and the velocity, with k=0 for breakage
-                    y_avg[i],v1_avg = RK4Dyn.RK4(dt,d[i-1],d[i],y_avg[i-1],v_avg,H,L_avg,0,ea,m,g)
+                    y_avg[i],v1_avg = RK4Dyn.RK4_link(dt,d[i-1],d[i],y_avg[i-1],v_avg,H,L_avg,0,ea,m,g)
                     #store new velocity value
-                    v_avg = v1
+                    v_avg = v1_avg
+                #correct v value if necessary to prevent divergence
+                if v_avg > 1000 or math.isnan(v_avg):
+                    v_avg = 1000
                 
                 #correct y value if necessary
                 #make sure the displacement doesn't pass the top of the link
@@ -589,13 +725,28 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, m, g, dt, t_stop, dyn,
                     v_avg = 0
             
             #check to see if the link has unbuckled
-            if y_avg[i] < 0:
-                #set y correctly
-                y_avg[i] = 0
-                #set indicator to unbuckled
-                c_avg = 0
-                #recalculate force to reflect unbuckling
-                F_avg = ea*math.atanh(d[i]/(H - L_avg))
+            if not plasticity:
+                if y_avg[i] < 0:
+                    #set y correctly
+                    y_avg[i] = 0
+                    #set indicator to unbuckled
+                    c_avg = 0
+                    #recalculate force to reflect unbuckling
+                    F_avg = ea*math.atanh(d[i]/(H - L_avg))
+            else:
+                if y_avg[i] > 10*y_avg[i-1] and y_avg[i-1] != 0:
+                    #set y correctly
+                    y_avg[i] = 0
+                    #set indicator to unbuckled
+                    c_avg = 0
+                    #recalculate force to reflect unbuckling
+                    #if the atanh argument is >= 1
+                    if d[i] >= (H-L_avg):
+                        #make the force as large as it can be
+                        F_avg = ea*math.atanh(.9999999999999999)
+                    #otherwise calculate the force normally
+                    else:
+                        F_avg = ea*math.atanh(d[i]/(H - L_avg))
         
         
         #if the link is completely collapsed
@@ -626,6 +777,7 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, m, g, dt, t_stop, dyn,
         
         #calculate total average force
         P_avg[i] = F_avg*n_l
+    
     
     
     
@@ -662,10 +814,10 @@ if multirun:
     for k in range(runs):
         print "run", k
         #find force and F_crit_avg for each run
-        P[k], P_avg, y, F_crit_avg[k], L = Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, m, g, dt, t_stop, dyn, damage, bing, testing)
+        P[k], P_avg, y, F_crit_avg[k], L = Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, m, g, dt, t_stop, dyn, damage, plasticity, bing, testing)
 #if only running once
 else:
-    P, P_avg, y, F_crit_avg, L = Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, m, g, dt, t_stop, dyn, damage, bing, testing)
+    P, P_avg, y, F_crit_avg, L = Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, m, g, dt, t_stop, dyn, damage, plasticity, bing, testing)
     
 
 #stop timing code
@@ -706,6 +858,7 @@ else:
         plt.axis([0,H+.1*H,0,F_crit_avg*n_l*1.1])
     #for dynamics
     else:
+        #plt.axis([0,H+.1*H,0,20])
         plt.axis([0,H+.1*H,min(P_avg)*1.1,max(P_avg)*1.1])
     plt.xlabel("Displacement (m)")
     plt.ylabel("Force (N)")

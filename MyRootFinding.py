@@ -14,6 +14,7 @@ def newton_raphson(f,x0,fprime,args=(),tol=.001,Imax=1000,zerotol=.01):
     err = 10*tol #initial error
     I = 0 #iteration counter
     fd0 = fprime(x0,*args)
+    adj = 0
     #initialize x
     #if slope at initial guess is very small
     if abs(fd0) < .05:
@@ -24,13 +25,12 @@ def newton_raphson(f,x0,fprime,args=(),tol=.001,Imax=1000,zerotol=.01):
         x = x0
             
     while I < Imax and err >= tol:
+        #print 'I', I
         #store old value
         x_old = x
-        
         #compute values of function and derivative
         fv = f(x,*args)
         fd = fprime(x,*args)
-        
         #find next guess
         x = x - fv/fd
         
@@ -39,6 +39,8 @@ def newton_raphson(f,x0,fprime,args=(),tol=.001,Imax=1000,zerotol=.01):
         
         
         I += 1 #increment counter
+        
+        
     
     
     fv = f(x,*args)
@@ -74,7 +76,75 @@ def newton_raphson(f,x0,fprime,args=(),tol=.001,Imax=1000,zerotol=.01):
 
 
 
-
-
-
-
+def bisection(f,xl,xu,args=(),tol=.001,Imax=1000):
+    #this function uses the bisection method to find the root of a function
+    #inputs: f, function to find the root of
+    #        xl and xu, the lower and upper boundaries of the function
+    #        args, optional, the other arguments of f
+    #        tol, optional (default .001), the error tolerance
+    #        Imax, the maximum number of iterations to run the method
+    #outputs: the root of the function
+    
+    
+    #initialize
+    #find the value of the function at the lower bound
+    fxl = f(xl,*args)
+    #set the error
+    err = 10*tol
+    #initialize counter
+    I = 0
+    #initialize guess for root
+    x = xl
+    
+    
+    #perform bisection method
+    while (err > tol and I < Imax):
+        #print 'I', I
+        #save old guess value
+        xold = x
+        
+        #get new guess value at halfway point
+        x = (xl + xu)/2.
+        #print 'x', x
+        #evaluate function at root
+        fx = f(x,*args)
+        
+        #check to see whether the guess has the same sign as the lower bound
+        fsign = fxl*fx
+        
+        #if both have the same sign
+        if fsign > 0:
+            #move lower bound to guess value
+            xl = x
+            #save new lower bound function value
+            fxl = fx
+        #if both have different signs
+        elif fsign < 0:
+            #move upper bound to guess value
+            xu = x
+        #if the guess is actually the root
+        else:
+            #stop the loop
+            break
+        
+        #increment counter
+        I += 1
+        
+        #calculate error
+        err = abs((x-xold)/x)
+        
+        
+    if I == Imax:
+        print 'root not found'
+    else:
+        return x
+            
+    
+    
+    
+    
+    
+    
+    
+    
+    
