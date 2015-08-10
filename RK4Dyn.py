@@ -301,5 +301,43 @@ def RK4_plaslink(dt,u0,u1,y0,v0,H,L,k,ea,m,g,x_plas):
     return y1, v1
 
 
+def RK4_dashser(l0,dt,k,x,c):
+    #This function uses 4th order Runge Kutta to find the displacement of the back of the spring
+    #for the side spring and dashpot in series plasticity model
+    #inputs: l0, the previous displacement of the back of the spring
+    #        dt, the time step
+    #        k, the side spring constant
+    #        x, the displacement of the front of the spring
+    #        c, the dashpot's constant
+    #outputs: l1, the current displacement of the back of the spring
+    
+    
+    #get K values
+    #get K_l1
+    K_l1 = (k*(x-(l0)))/c
+    
+    #get K_l2
+    K_l2 = (k*(x-(l0+(dt/2)*K_l1)))/c
+    
+    #get K_l3
+    K_l3 = (k*(x-(l0+(dt/2)*K_l2)))/c
+    
+    #get K_l4
+    K_l4 = (k*(x-(l0+dt*K_l3)))/c
+    
+    
+    #get new l
+    l1 = l0 + (dt/6)*(K_l1 + 2*K_l2 + 2*K_l3 + K_l4)
+    
+    
+    return l1
+    
+    
+    
+    
+    
+    
+    
+    
 
 

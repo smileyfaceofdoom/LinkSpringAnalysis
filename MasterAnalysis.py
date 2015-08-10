@@ -40,10 +40,12 @@ start_time = time.clock()
 #set type of simulation to run.
 dyn = True # sets whether the simulation is dynamic (True) or quasistatic (False).
 damage = False #sets whether or not to add damage effects
-plasticity = True
+plasticity = False #sets whether or not to do plasticity with a Jenkins element
+dashpot_par = False #sets whether or not to add a dashpot in parallel with the side spring
+dashpot_ser = True #sets whether or not to add a dashpot in series with the side spring
 bing = False #sets whether or not to use binning
 testing = True #sets whether to run in testing mode, with a non-random initial number distribution
-auto_dfix = True #If true, if a displacement value is >= H, it will automatically be set to .9999*H. If false, the code won't run if a d value >= H.
+auto_dfix = True #if true, if a displacement value is >= H, it will automatically be set to .9999*H. If false, the code won't run if a d value >= H.
 multirun = False #sets whether the simulation will run multiple times to make a comparison plot (if true, won't plot average or run animation)
 
 
@@ -68,13 +70,16 @@ i_max = 10 #number of bins
 
 #for damage/plasticity
 theta_crit = 30.0 #breaking angle, measured from vertical (degrees)
-F_slide = 5.0 #critical slipping force for plasticity element (N)
+F_slide = 10.0 #critical slipping force for plasticity element (N)
+
+#for the dashpots
+c_dash = 1.0
 
 #for dynamics
 m = 1.0 #mass (kg)
 g = 0.0 #acceleration of gravity (m/s^2)
 dt = .02 #time step (s)
-t_stop = 20.0 #total time (s)
+t_stop = 10.0 #total time (s)
 #if the animation is dynamic, set the number of steps based on the stop time and time step
 if dyn:
     steps = int(t_stop/dt)
@@ -98,13 +103,13 @@ runs = 100 #number of runs for multirun
 
 
 #create list of displacements using dfunc
-d = dfunc.cospath(steps,3,H,.5)
+#d = dfunc.cospath(steps,3,H,.5)
 #d = dfunc.linepath(steps,H)
-#d1 = dfunc.linepath(steps/2,H*.5)
-#d2 = dfunc.pausepath(steps/2,H*.5)
+d1 = dfunc.linepath(steps/2,H*.5)
+d2 = dfunc.pausepath(steps/2,H*.5)
 #d3 = dfunc.linepath(steps/2,0,d0=H*.5)
 #d = dfunc.vpath(steps,1,H,.6)
-#d=d1+d2
+d=d1+d2
 
 
 
@@ -121,6 +126,12 @@ if bing:
 if damage:
     if theta_crit < 0 or theta_crit > 90:
         raise ValueError('The breaking angle must be between 0 and 90 degrees')
+    
+    
+#make sure that only one form of plasticity is on
+if (plasticity and (dashpot_par or dashpot_ser)) or (dashpot_par and dashpot_ser):
+    raise ValueError('Only ONE of plasticity, dashpot_par, or dashpot_ser may be set to True')
+
 
 
 #make sure animation is turned off under conditions that can't be animated
@@ -192,7 +203,7 @@ if type(xspacing) != float:
 #---------------------main analysis function-----------------------------------------------------------
 
 
-def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, m, g, dt, t_stop, dyn, damage, plasticity, bing, testing):
+def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, c_dash, m, g, dt, t_stop, dyn, damage, plasticity, bing, testing):
     #This function performs the main analysis
     #inputs: all basic, damage, and dynamic parameters, except steps.
     #        list of displacements (d)
@@ -286,6 +297,17 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, m, g, dt, t_s
         x = [0]*n
         x_avg = 0
         x_plas_avg = 0
+    elif dashpot_par:
+        x = [0]*n
+        x_avg = 0
+        dx = [0]*n
+        dx_avg = 0
+    elif dashpot_ser:
+        x = [0]*n
+        x_avg = 0
+        x_dash = [0]*n
+        x_dash_avg = 0
+        
     
     #set up stuff for root finding if not using dynamic analysis
     if not dyn:
@@ -440,13 +462,40 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, m, g, dt, t_s
                     
                     #if the link isn't broken
                     if b[j] == 0:
-                        if not plasticity:
-                            #run Runge Kutta method to find y and the velocity
-                            y[i][j],v[j] = RK4Dyn.RK4_link(dt,d[i-1],d[i],y[i-1][j],v[j],H,L[j],k,ea,m,g)
-                        else:
+                        if dashpot_par:
+                            #save previous x value
+                            xold = x[j]
+                            #find final argument value
+                            fin_arg = -c_dash*dx[j]/k
+                            #run Runge Kutta method for plasticity with fin_arg instead of x_plas to find y and the velocity
+                            y[i][j],v[j] = RK4Dyn.RK4_plaslink(dt,d[i-1],d[i],y[i-1][j],v[j],H,L[j],k,ea,m,g,fin_arg)
+                            #find new x
+                            if y[i][j] < 0:
+                                x[j] = 0
+                            elif y[i][j] > L[j]:
+                                x[j] = L[j]/2
+                            else:
+                                x[j] = math.sqrt(2*L[j]*y[i][j]-y[i][j]**2)/2
+                            #find new dx
+                            dx[j] = (x[j] - xold)/dt
+                            
+                        elif dashpot_ser:
+                            #run Runge Kutta method for plasticity with x_dash instead of x_plas to find y and the velocity
+                            y[i][j],v[j] = RK4Dyn.RK4_plaslink(dt,d[i-1],d[i],y[i-1][j],v[j],H,L[j],k,ea,m,g,x_dash[j])
+                            #get new x
+                            if y[i][j] < 0:
+                                x[j] = 0
+                            elif y[i][j] > L[j]:
+                                x[j] = L[j]/2
+                            else:
+                                x[j] = math.sqrt(2*L[j]*y[i][j]-y[i][j]**2)/2
+                            #use Runge Kutta method to get new x_dash
+                            x_dash[j] = RK4Dyn.RK4_dashser(x_dash[j],dt,k,x[j],c_dash)
+                            
+                        elif plasticity:
                             #find spring displacement
                             d_s = x[j] - x_plas[j]
-                            #run Runge Kutta method to find y and the velocity
+                            #run Runge Kutta method for plasticity to find y and the velocity
                             y[i][j],v[j] = RK4Dyn.RK4_plaslink(dt,d[i-1],d[i],y[i-1][j],v[j],H,L[j],k,ea,m,g,x_plas[j])
                             #find new x
                             if y[i][j] < 0:
@@ -460,6 +509,11 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, m, g, dt, t_s
                                 x_plas[j] = x[j] - x_crit
                             elif d_s < -x_crit:
                                 x_plas[j] = x[j] + x_crit
+                        else:
+                            #run regular Runge Kutta method to find y and the velocity
+                            y[i][j],v[j] = RK4Dyn.RK4_link(dt,d[i-1],d[i],y[i-1][j],v[j],H,L[j],k,ea,m,g)
+                        
+                        
                     else:
                         #run Runge Kutta method to find y and the velocity, with k=0 for breakage
                         y[i][j],v[j] = RK4Dyn.RK4_link(dt,d[i-1],d[i],y[i-1][j],v[j],H,L[j],0,ea,m,g)
@@ -675,15 +729,61 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, m, g, dt, t_s
                     
                 #if the link isn't broken
                 if b[j] == 0:
-                    #run Runge Kutta method to find y and the velocity
-                    y_avg[i],v1_avg = RK4Dyn.RK4_link(dt,d[i-1],d[i],y_avg[i-1],v_avg,H,L_avg,k,ea,m,g)
-                    #store new velocity value
-                    v_avg = v1_avg
+                    if dashpot_par:
+                        #save previous x value
+                        xold_avg = x_avg
+                        #find final argument value
+                        fin_arg_avg = -c_dash*dx_avg/k
+                        #run Runge Kutta method for plasticity with fin_arg instead of x_plas to find y and the velocity
+                        y_avg[i],v_avg = RK4Dyn.RK4_plaslink(dt,d[i-1],d[i],y_avg[i-1],v_avg,H,L_avg,k,ea,m,g,fin_arg_avg)
+                        #find new x
+                        if y_avg[i] < 0:
+                            x_avg = 0
+                        elif y_avg[i] > L_avg:
+                            x_avg = L_avg/2
+                        else:
+                            x_avg = math.sqrt(2*L_avg*y_avg[i]-y_avg[i]**2)/2
+                        #find new dx
+                        dx_avg = (x_avg - xold_avg)/dt
+                        
+                    elif dashpot_ser:
+                        #run Runge Kutta method for plasticity with x_dash instead of x_plas to find y and the velocity
+                        y_avg[i],v_avg = RK4Dyn.RK4_plaslink(dt,d[i-1],d[i],y_avg[i-1],v_avg,H,L_avg,k,ea,m,g,x_dash_avg)
+                        #get new x
+                        if y_avg[i] < 0:
+                            x_avg = 0
+                        elif y_avg[i] > L_avg:
+                            x_avg = L_avg/2
+                        else:
+                            x_avg = math.sqrt(2*L_avg*y_avg[i]-y_avg[i]**2)/2
+                        #use Runge Kutta method to get new x_dash
+                        x_dash_avg = RK4Dyn.RK4_dashser(x_dash_avg,dt,k,x_avg,c_dash)
+                        
+                    elif plasticity:
+                        #find spring displacement
+                        d_s_avg = x_avg - x_plas_avg
+                        #run Runge Kutta method for plasticity to find y and the velocity
+                        y_avg[i],v_avg = RK4Dyn.RK4_plaslink(dt,d[i-1],d[i],y_avg[i-1],v_avg,H,L_avg,k,ea,m,g,x_plas_avg)
+                        #find new x
+                        if y_avg[i] < 0:
+                            x_avg = 0
+                        elif y_avg[i] > L_avg:
+                            x_avg = L_avg/2
+                        else:
+                            x_avg = math.sqrt(2*L_avg*y_avg[i]-y_avg[i]**2)/2
+                        #find new x_plas if x_plas is changing
+                        if d_s_avg > x_crit:
+                            x_plas_avg = x_avg - x_crit
+                        elif d_s_avg < -x_crit:
+                            x_plas_avg = x_avg + x_crit
+                    else:
+                        #run Runge Kutta method to find y and the velocity
+                        y_avg[i],v_avg = RK4Dyn.RK4_link(dt,d[i-1],d[i],y_avg[i-1],v_avg,H,L_avg,k,ea,m,g)
+
                 else:
                     #run Runge Kutta method to find y and the velocity, with k=0 for breakage
-                    y_avg[i],v1_avg = RK4Dyn.RK4_link(dt,d[i-1],d[i],y_avg[i-1],v_avg,H,L_avg,0,ea,m,g)
-                    #store new velocity value
-                    v_avg = v1_avg
+                    y_avg[i],v_avg = RK4Dyn.RK4_link(dt,d[i-1],d[i],y_avg[i-1],v_avg,H,L_avg,0,ea,m,g)
+
                 #correct v value if necessary to prevent divergence
                 if v_avg > 1000 or math.isnan(v_avg):
                     v_avg = 1000
@@ -734,7 +834,7 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, m, g, dt, t_s
                     #recalculate force to reflect unbuckling
                     F_avg = ea*math.atanh(d[i]/(H - L_avg))
             else:
-                if y_avg[i] > 10*y_avg[i-1] and y_avg[i-1] != 0:
+                if (y_avg[i] > 10*y_avg[i-1] and y_avg[i-1] != 0 and not dyn) or (y_avg[i] < 0 and dyn):
                     #set y correctly
                     y_avg[i] = 0
                     #set indicator to unbuckled
@@ -814,10 +914,10 @@ if multirun:
     for k in range(runs):
         print "run", k
         #find force and F_crit_avg for each run
-        P[k], P_avg, y, F_crit_avg[k], L = Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, m, g, dt, t_stop, dyn, damage, plasticity, bing, testing)
+        P[k], P_avg, y, F_crit_avg[k], L = Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, c_dash, m, g, dt, t_stop, dyn, damage, plasticity, bing, testing)
 #if only running once
 else:
-    P, P_avg, y, F_crit_avg, L = Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, m, g, dt, t_stop, dyn, damage, plasticity, bing, testing)
+    P, P_avg, y, F_crit_avg, L = Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, c_dash, m, g, dt, t_stop, dyn, damage, plasticity, bing, testing)
     
 
 #stop timing code
