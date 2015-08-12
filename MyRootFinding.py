@@ -1,3 +1,24 @@
+"""Copyright 2015 Katharin Jensen
+
+
+This code uses either the Newton-Raphson or bisection root finding method to find the root of a function
+
+
+LinkSpringAnalysis is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+LinkSpringAnalysis is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with LinkSpringAnalysis.  If not, see <http://www.gnu.org/licenses/>."""
+
+
+
 #imports
 import math
 import matplotlib.pyplot as plt
@@ -25,7 +46,7 @@ def newton_raphson(f,x0,fprime,args=(),tol=.001,Imax=1000,zerotol=.01):
         x = x0
             
     while I < Imax and err >= tol:
-        #print 'I', I
+        
         #store old value
         x_old = x
         #compute values of function and derivative
@@ -99,13 +120,13 @@ def bisection(f,xl,xu,args=(),tol=.001,Imax=1000):
     
     #perform bisection method
     while (err > tol and I < Imax):
-        #print 'I', I
+        
         #save old guess value
         xold = x
         
         #get new guess value at halfway point
         x = (xl + xu)/2.
-        #print 'x', x
+        
         #evaluate function at root
         fx = f(x,*args)
         

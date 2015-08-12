@@ -1,3 +1,30 @@
+"""Copyright 2015 Katharin Jensen
+
+
+This function applies binning to a set of numbers, as described in
+Huq, F., L. Graham-Brady, and R. Brannon 
+(2015) An Efficient Binning Scheme with Application to Statistical Crack Mechanics, 
+Int. J. Num. Meth. Engr.
+
+
+This file is part of LinkSpringAnalysis.
+
+LinkSpringAnalysis is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+LinkSpringAnalysis is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with LinkSpringAnalysis.  If not, see <http://www.gnu.org/licenses/>."""
+
+
+
+
 def binning(r_p,i_max):
     import math
     #This function applies binning to a set of random numbers to reduce computational cost. It uses 2 Gauss points per cell

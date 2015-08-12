@@ -1,10 +1,28 @@
-"""Katharin Jensen
+"""Copyright 2015 Katharin Jensen
+
+
 This code finds the force vs. displacement curve for the compression of a system of parallel units consisting of two
 connected rigid links in series with a vertical nonlinear spring, with a linear horizontal spring attached at the 
 joint of the two links. 
 If desired, it can then create an animation for a small number of links. It can also save this animation as a GIF.
 This code can analyze both quasistatic and dynamic motion, with or without damage effects.
-For large numbers of links, binning can be applied to reduce computation time"""
+For large numbers of links, binning can be applied to reduce computation time
+
+
+This file is part of LinkSpringAnalysis.
+
+LinkSpringAnalysis is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+LinkSpringAnalysis is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with LinkSpringAnalysis.  If not, see <http://www.gnu.org/licenses/>."""
 
 
 
@@ -51,7 +69,7 @@ multirun = False #sets whether the simulation will run multiple times to make a 
 
 #set animation options
 make_ani = True
-save_ani = False
+save_ani = True
 auto_frameskip = True #automatically sets frameskip so that if save_ani is on, the animation will play in the same length of time but at 10fps
 
 
@@ -62,7 +80,7 @@ ea_t = 10.0 #top spring constant (N)
 k_t = 100.0 #side spring constant (N/m)
 H = 1.0 #total height (m)
 Wm = 4.0 #Weibull modulus
-n_l = 5 #number of links
+n_l = 3 #number of links
 steps = 1000 #number of displacement steps (note, if dyn=True this will be overwritten by t_stop/dt)
 
 #for binning
@@ -70,46 +88,44 @@ i_max = 10 #number of bins
 
 #for damage/plasticity
 theta_crit = 30.0 #breaking angle, measured from vertical (degrees)
-F_slide = 10.0 #critical slipping force for plasticity element (N)
+F_slide = 5.0 #critical slipping force for plasticity element (N)
 
 #for the dashpots
-c_dash = 1.0
+c_dash = 10.0 #damping coefficient (N*m/s)
 
 #for dynamics
 m = 1.0 #mass (kg)
 g = 0.0 #acceleration of gravity (m/s^2)
 dt = .02 #time step (s)
-t_stop = 10.0 #total time (s)
+t_stop = 20.0 #total time (s)
 #if the animation is dynamic, set the number of steps based on the stop time and time step
 if dyn:
     steps = int(t_stop/dt)
-    print steps
 
 #for animation
 xspacing = .5*H #spacing between links in animation (m)
 fps = 50 #frame rate (fps) (if save_ani is on, it automatically changes to 10fps, set frameskip accordingly or use auto_frameskip)
 frameskip = 1 #frames to skip between displayed frames (e.g. frameskip=3 means play every 3rd frame)
-fname = "Example5.gif" #filename for saving GIF (make sure it has the .gif at the end of it)
-#automatically set frameskip to play animation at same speed with 10fps if auto_frameskip and save_ani are on
+fname = "Example9.gif" #filename for saving GIF (make sure it has the .gif at the end of it)
+#automatically set frameskip to play animation in real time at 10fps if auto_frameskip and save_ani are on
 if save_ani and auto_frameskip: 
-    #for dynamics
     if dyn:
-        frameskip = int((1.0/dt)/10.0)
+        frameskip = int((1./dt)/10.)
     else:
-        frameskip = int(fps/10)
+        frameskip = int(fps/10.)
 
 #for running multiple times
 runs = 100 #number of runs for multirun
 
 
 #create list of displacements using dfunc
-#d = dfunc.cospath(steps,3,H,.5)
+d = dfunc.cospath(steps,3,H,.5)
 #d = dfunc.linepath(steps,H)
-d1 = dfunc.linepath(steps/2,H*.5)
-d2 = dfunc.pausepath(steps/2,H*.5)
-#d3 = dfunc.linepath(steps/2,0,d0=H*.5)
-#d = dfunc.vpath(steps,1,H,.6)
-d=d1+d2
+#d1 = dfunc.linepath(steps/3,H*.5)
+#d2 = dfunc.pausepath(steps/3,H*.5)
+#d3 = dfunc.linepath(steps/3,H,d0=H*.5)
+#d = dfunc.vpath(steps,1,H,.5)
+#d=d1+d2+d3
 
 
 
@@ -181,6 +197,9 @@ if type(theta_crit) != float:
 #F_slide    
 if type(F_slide) != float:
     F_slide = float(F_slide)
+#c_dash   
+if type(c_dash) != float:
+    c_dash = float(c_dash)
 #m    
 if type(m) != float:
     m = float(m)
@@ -203,7 +222,7 @@ if type(xspacing) != float:
 #---------------------main analysis function-----------------------------------------------------------
 
 
-def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, c_dash, m, g, dt, t_stop, dyn, damage, plasticity, bing, testing):
+def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, c_dash, m, g, dt, t_stop, dyn, damage, plasticity, dashpot_par, dashpot_ser, bing, testing):
     #This function performs the main analysis
     #inputs: all basic, damage, and dynamic parameters, except steps.
     #        list of displacements (d)
@@ -298,13 +317,17 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, c_dash, m, g,
         x_avg = 0
         x_plas_avg = 0
     elif dashpot_par:
+        #initialize x distance
         x = [0]*n
         x_avg = 0
+        #initialize x rate of change
         dx = [0]*n
         dx_avg = 0
     elif dashpot_ser:
+        #initialize x distance
         x = [0]*n
         x_avg = 0
+        #initialize the displacement of the dashpot
         x_dash = [0]*n
         x_dash_avg = 0
         
@@ -341,9 +364,7 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, c_dash, m, g,
     
     #calculate force at each displacement value
     for i in range(len(d)):
-#         if its >= 5:
-#             break
-        print i   
+        
         
         #initialize list of link forces for this displacement
         F = [0]*n
@@ -351,7 +372,7 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, c_dash, m, g,
         
         #for each link-------------------------------------------------------------------------------
         for j in range(n):
-            #print j    
+               
             
             #if the link isn't buckled, check to see if the displacement has jumped past the top of the link
             if c[j] == 0 and d[i] >= H - L[j]:
@@ -360,7 +381,7 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, c_dash, m, g,
                 
             #if the link isn't buckled
             if c[j] == 0:#-----------------------------------------------------
-                #print 'c', 0    
+                   
                 #calculate the force in the link
                 F[j] = ea*math.atanh(d[i]/(H-L[j]))
                 #set y
@@ -383,18 +404,16 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, c_dash, m, g,
                 else:
                     #for dynamics
                     if F[j] + m*g >= 0 and dyn:
-                        #print F[j]
                         #set indicator to buckling
                         c[j] = 1
                     #for quasistatic
                     elif F[j] >= 0 and (not dyn):
-                        #print F[j]
                         #set indicator to buckling
                         c[j] = 1
                     
             #if the link is buckling
             elif c[j] == 1:#--------------------------------------------------------
-                #print 'c', 1 
+                
                 #calculate the force in the link
                 #for quasistatic
                 if not dyn:
@@ -419,7 +438,6 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, c_dash, m, g,
                             d_s = x[j] - x_plas[j]
                             #set function arguments
                             args = (d[i],L[j],k,H,ea,x_plas[j])
-                            #print 'args', args
                             #find boundaries for bisection method
                             #set lower boundary to either 0 or the smallest number for atanh
                             if d[i]-H+L[j] < 0:
@@ -442,7 +460,6 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, c_dash, m, g,
                                 x_plas[j] = x[j] - x_crit
                             elif d_s < -x_crit:
                                 x_plas[j] = x[j] + x_crit
-                            #print 'x_plas', x_plas[j]
                         else:
                             #assign current value as next guess value, to be more accurate and help prevent diverging
                             F_old[j] = F[j]
@@ -590,7 +607,7 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, c_dash, m, g,
             
             #if the link is completely collapsed
             elif c[j] == 2:#------------------------------------------------------------------
-                #print 'c', 2 
+                 
                 #store y
                 y[i][j] = L[j]
 
@@ -684,7 +701,6 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, c_dash, m, g,
                         d_s_avg = x_avg - x_plas_avg
                         #set function arguments
                         args_avg = (d[i],L_avg,k,H,ea,x_plas_avg)
-                        #print 'args', args
                         #find boundaries for bisection method
                         #set lower boundary to either 0 or the smallest number for atanh
                         if d[i]-H+L_avg < 0:
@@ -700,7 +716,6 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, c_dash, m, g,
                         #store y value
                         #find force
                         F_avg = ea*math.atanh((d[i]-y_avg[i])/(H-L_avg))
-                        print 'F', F_avg
                         #find new x
                         x_avg = math.sqrt(2*L_avg*y_avg[i]-y_avg[i]**2)/2
                         #find new x_plas if x_plas is changing
@@ -708,7 +723,6 @@ def Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, c_dash, m, g,
                             x_plas_avg = x_avg - x_crit
                         elif d_s_avg < -x_crit:
                             x_plas_avg = x_avg + x_crit
-                        #print 'x_plas', x_plas[j]
                     else:
                         #assign current value as next guess value, to be more accurate and help prevent diverging
                         F_old_avg = F_avg
@@ -914,10 +928,10 @@ if multirun:
     for k in range(runs):
         print "run", k
         #find force and F_crit_avg for each run
-        P[k], P_avg, y, F_crit_avg[k], L = Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, c_dash, m, g, dt, t_stop, dyn, damage, plasticity, bing, testing)
+        P[k], P_avg, y, F_crit_avg[k], L = Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, c_dash, m, g, dt, t_stop, dyn, damage, plasticity, dashpot_par, dashpot_ser, bing, testing)
 #if only running once
 else:
-    P, P_avg, y, F_crit_avg, L = Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, c_dash, m, g, dt, t_stop, dyn, damage, plasticity, bing, testing)
+    P, P_avg, y, F_crit_avg, L = Analysis(ea_t, k_t, H, Wm, n_l, d, i_max, theta_crit, F_slide, c_dash, m, g, dt, t_stop, dyn, damage, plasticity, dashpot_par, dashpot_ser, bing, testing)
     
 
 #stop timing code

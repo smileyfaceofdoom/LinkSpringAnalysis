@@ -1,4 +1,24 @@
-"""This will animate the link spring system, in conjunction with matplotlib.animation"""
+"""Copyright 2015 Katharin Jensen
+
+
+This will animate the link spring system, in conjunction with matplotlib's animation functions
+
+
+LinkSpringAnalysis is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+LinkSpringAnalysis is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with LinkSpringAnalysis.  If not, see <http://www.gnu.org/licenses/>."""
+
+
+
 #imports
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
@@ -24,6 +44,8 @@ def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg,save_ani,fps=50,frameskip=1,dyn=Fa
         #get displacement angles of links
         theta = [np.arccos((L[j]-y[j])/L[j]) for j in range(n)]
         for j in range(n):
+            if (L[j]-y[j])/L[j] < -1 or (L[j]-y[j])/L[j] > 1:
+                print y[j]
             if theta[j] > np.pi/2:
                 theta[j] = np.pi/2
         
@@ -215,6 +237,7 @@ def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg,save_ani,fps=50,frameskip=1,dyn=Fa
     ax1.add_patch(bot_patch)
     linePd, = ax2.plot([],[])
     linePd_avg, = ax2.plot([],[],'r--')
+    dotPd, = ax2.plot([],[],'k.')
     
     #label figure
     ax2.legend(["Actual Force Value","Force Value for Average Length"],fontsize='small')
@@ -236,11 +259,12 @@ def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg,save_ani,fps=50,frameskip=1,dyn=Fa
         mass.set_data([],[])
         linePd.set_data([],[])
         linePd_avg.set_data([],[])
+        dotPd.set_data([],[])
         #blank patches
         ax1.add_patch(top_patch)
         ax1.add_patch(bot_patch)
         #return all objects to be animated
-        return clr,lineb,bot_patch,top_patch,linesp,dots,mass,linePd_avg,linePd
+        return clr,lineb,bot_patch,top_patch,linesp,dots,mass,linePd_avg,linePd,dotPd
     
     #animate
     def animate(i):
@@ -266,7 +290,9 @@ def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg,save_ani,fps=50,frameskip=1,dyn=Fa
         linePd.set_data(d[:frameskip*i],P[:frameskip*i])
         #plot average force vs. displacement
         linePd_avg.set_data(d[:frameskip*i],P_avg[:frameskip*i])
-        return clr,lineb,bot_patch,top_patch,linesp,dots,mass,linePd_avg,linePd
+        #put dots on plot
+        dotPd.set_data([d[frameskip*i],d[frameskip*i]],[P[frameskip*i],P_avg[frameskip*i]])
+        return clr,lineb,bot_patch,top_patch,linesp,dots,mass,linePd_avg,linePd,dotPd
     
     #get interval between frames
     if dyn:
@@ -279,7 +305,7 @@ def ani(L,y,H,n,d,P,P_avg,xspacing,F_crit_avg,save_ani,fps=50,frameskip=1,dyn=Fa
             inter = 100
     
     #animate
-    anim = animation.FuncAnimation(fig,animate,init_func=init,frames=(len(d)-1)/frameskip,interval=inter,blit=True,repeat=False)
+    anim = animation.FuncAnimation(fig,animate,init_func=init,frames=int((len(d)-1)/frameskip),interval=inter,blit=True,repeat=False)
     plt.show()
     
     return anim   

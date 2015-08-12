@@ -1,5 +1,23 @@
-'''Katharin Jensen
-These functions create a few displacement paths for the link-spring system'''
+'''Copyright 2015 Katharin Jensen
+
+
+These functions create a few displacement paths for the link-spring system
+
+
+LinkSpringAnalysis is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+LinkSpringAnalysis is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with LinkSpringAnalysis.  If not, see <http://www.gnu.org/licenses/>.'''
+
+
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -81,22 +99,6 @@ def pausepath(s,dval):
     return d
     
 
-#tests
-
-#s = range(999/3)
-#d = linepath(int(20/(3*.02)),1.0,d0=1.0/2)
-
-# d = vpath(1000,1.5,1.0,.5,d0=.25)
-# s = range(len(d))
-
-# s = range(1000)
-# d = cospath(1000,2.3,1.0,.5,.25)
-
-# s = range(1000)
-# d = pausepath(1000,.75)
-  
-# plt.plot(s,d)
-# plt.show()
 
 
 
